@@ -1,23 +1,19 @@
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import roc_auc_score
+import shap
 from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
 
 # === 1. Cargar dataset FULL ===
-df = pd.read_parquet("data/processed/features.parquet")
-print("Dataset cargado:", df.shape)
+df = pd.read_parquet("data\processed\features.parquet")
 
-# === 2. Separar X / y ===
 y = df["TARGET"]
 X = df.drop(columns=["TARGET", "SK_ID_CURR"], errors="ignore")
 
-# === 3. Convertir object -> category (CLAVE)
+# object -> category (CLAVE)
 for col in X.select_dtypes(include="object").columns:
     X[col] = X[col].astype("category")
 
-print("Categorical columns:", X.select_dtypes(include="category").shape[1])
-
-# === 4. Split estratificado
+# === 2. Split (igual que entrenamiento) ===
 X_train, X_val, y_train, y_val = train_test_split(
     X,
     y,
@@ -26,7 +22,7 @@ X_train, X_val, y_train, y_val = train_test_split(
     stratify=y
 )
 
-# === 5. Modelo XGBoost con categóricas activadas
+# === 3. Entrenar modelo (idéntico) ===
 model = XGBClassifier(
     n_estimators=300,
     learning_rate=0.05,
@@ -35,16 +31,20 @@ model = XGBClassifier(
     colsample_bytree=0.8,
     eval_metric="auc",
     tree_method="hist",
-    enable_categorical=True,   # 🔥 CLAVE
+    enable_categorical=True,
     n_jobs=-1,
     random_state=42
 )
 
-# === 6. Entrenar
 model.fit(X_train, y_train)
 
-# === 7. Evaluar
-y_pred = model.predict_proba(X_val)[:, 1]
-auc = roc_auc_score(y_val, y_pred)
+# === 4. SHAP ===
+explainer = shap.TreeExplainer(model)
 
-print(f"AUC FULL dataset (XGB): {auc:.4f}")
+# Muestra razonable (rápido y estable)
+X_shap = X_val.sample(n=5000, random_state=42)
+
+shap_values = explainer.shap_values(X_shap)
+
+# === 5. SHAP Global ===
+shap.summary_plot(shap_values, X_shap, max_display=20)

@@ -1,32 +1,21 @@
 from src.features.load_data import load_data
-from src.features.build_features import build_features
-import pandas as pd
 
 # Cargar datos
 data = load_data()
+
 app = data["app"]
+pos_agg = data["pos_agg"]
+inst_agg = data["inst_agg"]
 
-X = []
-y = []
+# Merge final a nivel cliente (1 fila = 1 cliente)
+X = (
+    app
+    .merge(pos_agg, on="SK_ID_CURR", how="left")
+    .merge(inst_agg, on="SK_ID_CURR", how="left")
+)
 
-# 🔴 IMPORTANTE: sample pequeño para empezar
-sample = app.sample(n=1000, random_state=42)
+# Guardar dataset final
+X.to_parquet("data/processed/features.parquet", index=False)
 
-for i, (_, row) in enumerate(sample.iterrows()):
-    sk_id = row["SK_ID_CURR"]
-
-    feats = build_features(sk_id, data)
-    X.append(feats)
-    y.append(row["TARGET"])
-
-    if i % 100 == 0:
-        print(f"Procesados {i} clientes")
-
-# Construir dataset final
-X = pd.concat(X, ignore_index=True)
-X["TARGET"] = y
-
-# Guardar
-X.to_parquet("data/processed/features.parquet")
-
-print("Dataset final:", X.shape)
+print("Dataset final creado")
+print("Shape:", X.shape)
