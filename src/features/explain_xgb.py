@@ -8,7 +8,6 @@ df = pd.read_parquet("data/processed/features_xgb.parquet")
 X = df.drop(columns=["TARGET"])
 
 model = XGBClassifier()
-model.load_model("xgb_model.json")  # si decides guardarlo
 
 explainer = shap.TreeExplainer(model)
 shap_values = explainer.shap_values(X.iloc[:200])
