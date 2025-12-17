@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score
 import numpy as np
 from sklearn.metrics import confusion_matrix
+from src.evaluation.threshold_analysis import threshold_analysis
 
 # =====================
 # Load data
@@ -68,10 +69,10 @@ params = {
 model = lgb.train(
     params,
     train_set,
-    num_boost_round=2000,
+    num_boost_round=5000,
     valid_sets=[val_set],
     callbacks=[
-        lgb.early_stopping(stopping_rounds=100),
+        lgb.early_stopping(stopping_rounds=200),
         lgb.log_evaluation(100)
     ]
 )
@@ -147,3 +148,22 @@ filtered = results_df[results_df["fp_rate"] <= 0.15]
 
 print("\n=== Thresholds con FP <= 15% ===")
 print(filtered.sort_values("recall", ascending=False).head(10))
+
+# =====================
+# Threshold analysis (USANDO MODULO)
+# =====================
+
+df_thresh = threshold_analysis(
+    y_true=y_val,
+    y_proba=y_val_proba
+)
+
+print("\n=== Tabla COMPLETA de thresholds ===")
+print(df_thresh.head(20))
+
+print("\n=== Thresholds con FP rate <= 15% ===")
+print(
+    df_thresh[df_thresh["fp_rate"] <= 0.15]
+    .sort_values("recall", ascending=False)
+    .head(10)
+)
